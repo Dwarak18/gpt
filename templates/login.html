@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Login - AI Chat App{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center p-4">
+    <div class="form-container w-full max-w-md text-white slide-in">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-2 text-white">🤖 AI Chat</h1>
+            <p class="text-gray-300">Welcome back! Sign in to continue chatting with AI.</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">
+            <i class="fas fa-exclamation-circle mr-2"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        <form id="login-form" method="POST" class="space-y-6">
+            <div>
+                <label for="usernameOrEmail" class="block text-sm font-medium text-gray-300 mb-2">
+                    Email address or Username
+                </label>
+                <input 
+                    type="text" 
+                    id="usernameOrEmail" 
+                    name="usernameOrEmail" 
+                    class="input-field" 
+                    placeholder="you@example.com or username" 
+                    required
+                >
+            </div>
+            
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-300 mb-2">
+                    Password
+                </label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="input-field" 
+                    placeholder="••••••••" 
+                    required
+                >
+            </div>
+            
+            <button type="submit" id="login-btn" class="btn-primary w-full">
+                <i class="fas fa-sign-in-alt mr-2"></i>Login
+            </button>
+            
+            <p class="text-center text-sm text-gray-300">
+                Don't have an account? 
+                <a href="{{ url_for('signup') }}" class="btn-link font-medium">Sign Up</a>
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!validateForm('login-form')) {
+        showAlert('Please fill in all required fields.');
+        return;
+    }
+    
+    const originalText = showLoading('login-btn');
+    
+    const formData = new FormData(this);
+    const data = {
+        usernameOrEmail: formData.get('usernameOrEmail'),
+        password: formData.get('password')
+    };
+    
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('Login successful! Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = '/chat';
+            }, 1000);
+        } else {
+            showAlert(result.error || 'Login failed');
+        }
+    } catch (error) {
+        showAlert('Network error. Please try again.');
+    } finally {
+        hideLoading('login-btn', originalText);
+    }
+});
+</script>
+{% endblock %}
