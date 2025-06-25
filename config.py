@@ -2,8 +2,8 @@
 
 # Flask Configuration
 FLASK_HOST = "0.0.0.0"
-FLASK_PORT = 5000
-FLASK_DEBUG = True
+FLASK_PORT = 8888
+FLASK_DEBUG = False  # Set to False for production
 SECRET_KEY = "your-secret-key-here-change-in-production"
 
 # Database Configuration

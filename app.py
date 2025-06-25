@@ -12,7 +12,7 @@ try:
 except ImportError:
     # Default configuration if config.py is not found
     FLASK_HOST = "0.0.0.0"
-    FLASK_PORT = 5000
+    FLASK_PORT = 8888
     FLASK_DEBUG = True
     SECRET_KEY = "your-secret-key-here-change-in-production"
     DATABASE_NAME = "chatapp.db"
