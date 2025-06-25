@@ -3,7 +3,7 @@
 # Flask Configuration
 FLASK_HOST = "0.0.0.0"
 FLASK_PORT = 8888
-FLASK_DEBUG = False  # Set to False for production
+FLASK_DEBUG = True  # Enable debug mode for local development
 SECRET_KEY = "your-secret-key-here-change-in-production"
 
 # Database Configuration

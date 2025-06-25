@@ -91,7 +91,7 @@ def get_ai_response(message):
             
     except requests.exceptions.ConnectionError as e:
         print(f"❌ Connection error: {e}")
-        return "🔌 Unable to connect to AI service. Please run 'setup-ollama.bat' to start Ollama with Docker."
+        return "🔌 Unable to connect to AI service. Please start Ollama with Docker using 'docker-compose up -d ollama'."
     except requests.exceptions.Timeout as e:
         print(f"⏱️ Timeout error: {e}")
         return "⏱️ AI service is taking too long to respond. The model might be loading. Please try again in a moment."
