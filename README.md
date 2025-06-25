@@ -35,21 +35,62 @@ Before running the application, make sure you have:
 
 ## 🚀 Quick Start
 
-### 1. Clone or Download
-```bash
-git clone <repository-url>
-cd GPT-llama
-```
+### Prerequisites
+- Python 3.8+
+- Docker Desktop (for Ollama)
+- Git (optional)
 
-### 2. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+### 🐳 Docker-based Setup (Recommended)
 
-### 3. Run the Application
-```bash
-python app.py
-```
+1. **Install Docker Desktop**
+   - Download from https://www.docker.com/products/docker-desktop
+   - Install and start Docker Desktop
+   - Make sure Docker is running
+
+2. **Clone or Download the project**
+   ```bash
+   git clone <repository-url>
+   cd GPT-llama
+   ```
+
+3. **One-click setup and run**
+   ```bash
+   # Windows - Complete setup with Ollama
+   start-with-ollama.bat
+   
+   # This script will:
+   # - Check Docker
+   # - Start Ollama container
+   # - Download llama3.2:1b-instruct-q4_K_M model
+   # - Install Python dependencies  
+   # - Start the Flask app
+   ```
+
+4. **Manual Docker setup (if needed)**
+   ```bash
+   # Setup Ollama with Docker only
+   setup-ollama.bat
+   
+   # Then start the Flask app
+   start.bat
+   ```
+
+### 🔧 Traditional Setup (Alternative)
+
+1. **Install Ollama locally**
+   - Download from https://ollama.ai
+   - Install and start Ollama service
+   - Pull the model: `ollama pull llama3.2:1b-instruct-q4_K_M`
+
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run the application**
+   ```bash
+   python app.py
+   ```
 
 ### 4. Access the Application
 Open your browser and navigate to: `http://localhost:5000`

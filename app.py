@@ -73,20 +73,31 @@ def get_ai_response(message):
             "stream": False
         }
         
+        print(f"🤖 Sending request to Ollama: {ollama_url}")
+        print(f"📝 Model: {OLLAMA_MODEL}")
+        
         response = requests.post(ollama_url, json=payload, timeout=OLLAMA_TIMEOUT)
         
         if response.status_code == 200:
             data = response.json()
-            return data.get('response', 'No response from AI model.')
+            ai_response = data.get('response', 'No response from AI model.')
+            print(f"✅ AI Response received: {len(ai_response)} characters")
+            return ai_response
+        elif response.status_code == 404:
+            return f"❌ Model '{OLLAMA_MODEL}' not found. Please run the setup script to install the model."
         else:
-            return "AI service is currently unavailable. Please try again later."
+            print(f"❌ Ollama API error: {response.status_code} - {response.text}")
+            return f"AI service error (HTTP {response.status_code}). Please check if the model is available."
             
-    except requests.exceptions.ConnectionError:
-        return "Unable to connect to AI service. Please make sure Ollama is running with the llama3.2 model."
-    except requests.exceptions.Timeout:
-        return "AI service is taking too long to respond. Please try again."
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error: {e}")
+        return "🔌 Unable to connect to AI service. Please run 'setup-ollama.bat' to start Ollama with Docker."
+    except requests.exceptions.Timeout as e:
+        print(f"⏱️ Timeout error: {e}")
+        return "⏱️ AI service is taking too long to respond. The model might be loading. Please try again in a moment."
     except Exception as e:
-        return f"Error communicating with AI service: {str(e)}"
+        print(f"❌ Unexpected error: {e}")
+        return f"❌ Error communicating with AI service: {str(e)}"
 
 def check_ollama_health():
     """Check if Ollama service is healthy"""
