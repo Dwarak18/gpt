@@ -46,17 +46,62 @@ def init_db():
         )
     ''')
     
-    # Create chat history table
+    # Create chat sessions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            title TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Create chat history table (updated with session_id)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS chat_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER,
             user_id INTEGER,
             message TEXT NOT NULL,
             response TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES chat_sessions (id),
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
+    
+    # Migration: Add session_id column if it doesn't exist
+    try:
+        cursor.execute("PRAGMA table_info(chat_messages)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        
+        if 'session_id' not in column_names:
+            print("🔄 Migrating database: Adding session_id column...")
+            cursor.execute('ALTER TABLE chat_messages ADD COLUMN session_id INTEGER')
+            
+            # For existing messages, create default sessions
+            cursor.execute('SELECT DISTINCT user_id FROM chat_messages WHERE session_id IS NULL')
+            users_with_messages = cursor.fetchall()
+            
+            for (user_id,) in users_with_messages:
+                cursor.execute('''
+                    INSERT INTO chat_sessions (user_id, title, created_at, updated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ''', (user_id, 'Migrated Chat'))
+                
+                session_id = cursor.lastrowid
+                cursor.execute('''
+                    UPDATE chat_messages 
+                    SET session_id = ? 
+                    WHERE user_id = ? AND session_id IS NULL
+                ''', (session_id, user_id))
+            
+            print("✅ Database migration completed!")
+    except Exception as e:
+        print(f"Migration check failed: {e}")
     
     conn.commit()
     conn.close()
@@ -116,6 +161,137 @@ def check_ollama_health():
         return {'status': 'unhealthy', 'error': 'Service unavailable'}
     except Exception as e:
         return {'status': 'unhealthy', 'error': str(e)}
+
+# Session management functions
+def get_or_create_default_session(user_id):
+    """Get or create a default chat session for user"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    # Try to get existing default session
+    cursor.execute('''
+        SELECT id FROM chat_sessions 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 1
+    ''', (user_id,))
+    
+    session_row = cursor.fetchone()
+    
+    if session_row:
+        session_id = session_row[0]
+    else:
+        # Create new default session
+        cursor.execute('''
+            INSERT INTO chat_sessions (user_id, title)
+            VALUES (?, ?)
+        ''', (user_id, 'New Chat'))
+        session_id = cursor.lastrowid
+    
+    conn.commit()
+    conn.close()
+    return session_id
+
+def verify_session_ownership(session_id, user_id):
+    """Verify that a session belongs to the user"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id FROM chat_sessions 
+        WHERE id = ? AND user_id = ?
+    ''', (session_id, user_id))
+    
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
+
+def create_new_session(user_id, title="New Chat"):
+    """Create a new chat session"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO chat_sessions (user_id, title)
+        VALUES (?, ?)
+    ''', (user_id, title))
+    
+    session_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return session_id
+
+def get_user_sessions(user_id):
+    """Get all chat sessions for a user with recent message preview"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT s.id, s.title, s.created_at, s.updated_at,
+               (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id) as message_count,
+               (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY created_at DESC LIMIT 1) as last_user_message,
+               (SELECT response FROM chat_messages WHERE session_id = s.id ORDER BY created_at DESC LIMIT 1) as last_ai_response
+        FROM chat_sessions s
+        WHERE s.user_id = ?
+        ORDER BY s.updated_at DESC
+    ''', (user_id,))
+    
+    sessions = cursor.fetchall()
+    conn.close()
+    
+    result = []
+    for session in sessions:
+        last_message = session[5] if session[5] else None
+        last_response = session[6] if session[6] else None
+        
+        # Create a conversation preview
+        if last_message and last_response:
+            # Show both user message and AI response
+            preview = f"You: {last_message[:40]}{'...' if len(last_message) > 40 else ''}\nAI: {last_response[:40]}{'...' if len(last_response) > 40 else ''}"
+        elif last_message:
+            # Only user message exists
+            preview = f"You: {last_message[:60]}{'...' if len(last_message) > 60 else ''}"
+        else:
+            preview = 'No messages yet'
+            
+        result.append({
+            'id': session[0],
+            'title': session[1],
+            'created_at': session[2],
+            'updated_at': session[3],
+            'message_count': session[4],
+            'last_message': preview
+        })
+    
+    return result
+
+def update_session_title(session_id, title):
+    """Update session title"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE chat_sessions 
+        SET title = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ''', (title, session_id))
+    
+    conn.commit()
+    conn.close()
+
+def update_session_timestamp(session_id):
+    """Update session's last activity timestamp"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE chat_sessions 
+        SET updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ''', (session_id,))
+    
+    conn.commit()
+    conn.close()
 
 # Routes
 @app.route('/')
@@ -217,15 +393,26 @@ def signup():
     return render_template('signup.html')
 
 @app.route('/chat')
-def chat():
+@app.route('/chat/<int:session_id>')
+def chat(session_id=None):
     """Main chat interface"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
+    # If no session_id provided, get or create default session
+    if not session_id:
+        session_id = get_or_create_default_session(session['user_id'])
+        return redirect(url_for('chat', session_id=session_id))
+    
+    # Verify session belongs to user
+    if not verify_session_ownership(session_id, session['user_id']):
+        return redirect(url_for('chat'))
+    
     return render_template('chat.html', 
                          username=session.get('username'),
                          email=session.get('email'),
-                         phone=session.get('phone', ''))
+                         phone=session.get('phone', ''),
+                         current_session_id=session_id)
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
@@ -235,9 +422,17 @@ def api_chat():
     
     data = request.get_json()
     message = data.get('message')
+    session_id = data.get('session_id')
     
     if not message:
         return jsonify({'error': 'No message provided'}), 400
+    
+    if not session_id:
+        return jsonify({'error': 'No session ID provided'}), 400
+    
+    # Verify session ownership
+    if not verify_session_ownership(session_id, session['user_id']):
+        return jsonify({'error': 'Invalid session'}), 403
     
     # Get AI response
     ai_response = get_ai_response(message)
@@ -248,9 +443,21 @@ def api_chat():
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO chat_messages (user_id, message, response)
-            VALUES (?, ?, ?)
-        ''', (session['user_id'], message, ai_response))
+            INSERT INTO chat_messages (session_id, user_id, message, response)
+            VALUES (?, ?, ?, ?)
+        ''', (session_id, session['user_id'], message, ai_response))
+        
+        # Update session timestamp
+        update_session_timestamp(session_id)
+        
+        # Auto-generate title for new sessions
+        cursor.execute('SELECT COUNT(*) FROM chat_messages WHERE session_id = ?', (session_id,))
+        message_count = cursor.fetchone()[0]
+        
+        if message_count == 1:  # First message in session
+            # Generate title from first message (first 50 chars)
+            title = message[:50] + "..." if len(message) > 50 else message
+            update_session_title(session_id, title)
         
         conn.commit()
         conn.close()
@@ -266,11 +473,15 @@ def health_ollama():
     status_code = 200 if health_status['status'] == 'healthy' else 503
     return jsonify(health_status), status_code
 
-@app.route('/api/chat-history')
-def chat_history():
-    """Get user's chat history"""
+@app.route('/api/chat-history/<int:session_id>')
+def chat_history(session_id):
+    """Get chat history for a specific session"""
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Verify session ownership
+    if not verify_session_ownership(session_id, session['user_id']):
+        return jsonify({'error': 'Invalid session'}), 403
     
     conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
@@ -278,10 +489,9 @@ def chat_history():
     cursor.execute('''
         SELECT message, response, created_at 
         FROM chat_messages 
-        WHERE user_id = ? 
-        ORDER BY created_at DESC 
-        LIMIT 50
-    ''', (session['user_id'],))
+        WHERE session_id = ? 
+        ORDER BY created_at ASC
+    ''', (session_id,))
     
     messages = cursor.fetchall()
     conn.close()
@@ -295,6 +505,104 @@ def chat_history():
         })
     
     return jsonify({'history': chat_history})
+
+@app.route('/api/clear-chat-history/<int:session_id>', methods=['POST'])
+def clear_chat_history(session_id):
+    """Clear chat history for a specific session"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Verify session ownership
+    if not verify_session_ownership(session_id, session['user_id']):
+        return jsonify({'error': 'Invalid session'}), 403
+    
+    try:
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            DELETE FROM chat_messages 
+            WHERE session_id = ?
+        ''', (session_id,))
+        
+        # Reset session title
+        update_session_title(session_id, 'New Chat')
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Chat history cleared'})
+    except Exception as e:
+        print(f"Error clearing chat history: {e}")
+        return jsonify({'error': 'Failed to clear chat history'}), 500
+
+@app.route('/api/sessions')
+def get_sessions():
+    """Get all chat sessions for the user"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    sessions = get_user_sessions(session['user_id'])
+    return jsonify({'sessions': sessions})
+
+@app.route('/api/sessions/new', methods=['POST'])
+def create_session():
+    """Create a new chat session"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    data = request.get_json() if request.is_json else {}
+    title = data.get('title', 'New Chat')
+    
+    session_id = create_new_session(session['user_id'], title)
+    return jsonify({'session_id': session_id, 'title': title})
+
+@app.route('/api/sessions/<int:session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Delete a chat session"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Verify session ownership
+    if not verify_session_ownership(session_id, session['user_id']):
+        return jsonify({'error': 'Invalid session'}), 403
+    
+    try:
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        # Delete messages first (foreign key constraint)
+        cursor.execute('DELETE FROM chat_messages WHERE session_id = ?', (session_id,))
+        
+        # Delete session
+        cursor.execute('DELETE FROM chat_sessions WHERE id = ?', (session_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error deleting session: {e}")
+        return jsonify({'error': 'Failed to delete session'}), 500
+
+@app.route('/api/sessions/<int:session_id>/rename', methods=['POST'])
+def rename_session(session_id):
+    """Rename a chat session"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Verify session ownership
+    if not verify_session_ownership(session_id, session['user_id']):
+        return jsonify({'error': 'Invalid session'}), 403
+    
+    data = request.get_json()
+    new_title = data.get('title', '').strip()
+    
+    if not new_title:
+        return jsonify({'error': 'Title cannot be empty'}), 400
+    
+    update_session_title(session_id, new_title)
+    return jsonify({'success': True, 'title': new_title})
 
 @app.route('/logout')
 def logout():

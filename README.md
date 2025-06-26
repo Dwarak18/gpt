@@ -1,4 +1,4 @@
-# 🤖 AI Chat App with Flask & Ollama
+dod# 🤖 AI Chat App with Flask & Ollama
 
 A beautiful and modern AI chat application built with Flask, featuring user authentication, real-time chat with AI using Ollama (Llama 3.2), and a responsive design.
 
@@ -7,9 +7,10 @@ A beautiful and modern AI chat application built with Flask, featuring user auth
 - 🔐 **User Authentication**: Secure login and signup with password hashing
 - 💬 **AI Chat Interface**: Real-time chat with Ollama AI model (Llama 3.2)
 - 👤 **User Profiles**: Personal profile management
-- 📱 **Responsive Design**: Beautiful UI that works on all devices
+- � **Multiple Chat Sessions**: Create and manage separate chat conversations
+- �📱 **Responsive Design**: Beautiful UI that works on all devices
 - 🎨 **Modern UI**: Gradient backgrounds, glassmorphism effects, and smooth animations
-- 📊 **Chat History**: Track your conversations with the AI
+- 📊 **Chat History**: Persistent chat history - see previous conversations when you log in
 - 🔄 **Connection Status**: Real-time AI service status monitoring
 - � **Docker Integration**: Easy Ollama setup with Docker
 
@@ -187,8 +188,8 @@ A beautiful and modern AI chat application built with Flask, featuring user auth
 
 1. **Clone/Download the project**
    ```bash
-   git clone <your-repository-url>
-   cd GPT-llama
+   git clone https://github.com/Dwarak18/gpt.git
+   cd gpt
    ```
 
 2. **Start Ollama Container**
@@ -268,6 +269,12 @@ python app.py
 - **Send Messages**: Type your message and press Enter or click the send button
 - **AI Responses**: The AI will respond using the Llama 3.2 model
 - **Connection Status**: Green indicator shows AI is connected and ready
+- **Multiple Chats**: Use the sidebar to manage multiple chat sessions
+- **New Chat**: Click "New Chat" in the sidebar to start a fresh conversation
+- **Switch Chats**: Click on any session in the sidebar to switch between conversations
+- **Chat History**: Previous conversations are automatically loaded when you log in
+- **Delete Chats**: Use the trash icon on each session to delete unwanted conversations
+- **Clear History**: Use the dropdown menu to clear the current chat's history
 - **Profile**: Click on your username to view/edit your profile
 - **Logout**: Use the dropdown menu to logout
 
