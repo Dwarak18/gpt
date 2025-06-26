@@ -1,4 +1,4 @@
-dod# 🤖 AI Chat App with Flask & Ollama
+# 🤖 AI Chat App with Flask & Ollama
 
 A beautiful and modern AI chat application built with Flask, featuring user authentication, real-time chat with AI using Ollama (Llama 3.2), and a responsive design.
 
@@ -7,12 +7,13 @@ A beautiful and modern AI chat application built with Flask, featuring user auth
 - 🔐 **User Authentication**: Secure login and signup with password hashing
 - 💬 **AI Chat Interface**: Real-time chat with Ollama AI model (Llama 3.2)
 - 👤 **User Profiles**: Personal profile management
-- � **Multiple Chat Sessions**: Create and manage separate chat conversations
-- �📱 **Responsive Design**: Beautiful UI that works on all devices
+- 🗂️ **Multiple Chat Sessions**: Create and manage separate chat conversations
+- 📱 **Responsive Design**: Beautiful UI that works on all devices
 - 🎨 **Modern UI**: Gradient backgrounds, glassmorphism effects, and smooth animations
-- 📊 **Chat History**: Persistent chat history - see previous conversations when you log in
+- 📊 **Chat History**: Persistent chat history with conversation previews in sidebar
 - 🔄 **Connection Status**: Real-time AI service status monitoring
-- � **Docker Integration**: Easy Ollama setup with Docker
+- 🐳 **Docker Integration**: Easy Ollama setup with Docker
+- 🔧 **Auto Migration**: Automatic database schema updates and data preservation
 
 ## 🛠️ Prerequisites
 
@@ -558,6 +559,8 @@ python app.py
 ```
 
 ### Database Management
+
+> **Note**: The application automatically handles database migration. If you have an existing database from an earlier version, the app will automatically upgrade the schema to support multi-session chat history.
 
 #### Windows
 ```batch
